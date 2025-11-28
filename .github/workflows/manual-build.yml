@@ -1,0 +1,148 @@
+name: Manual Build - All Platforms
+
+# Manuel olarak tetiklenebilir build
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+      platform:
+        description: 'Platform to build'
+        required: true
+        type: choice
+        options:
+          - all
+          - windows
+          - macos
+          - linux
+
+jobs:
+  build-windows:
+    if: github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows'
+    runs-on: windows-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'yarn'
+          cache-dependency-path: frontend/yarn.lock
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: yarn install
+      
+      - name: Update version
+        working-directory: ./frontend
+        run: |
+          $json = Get-Content package.json | ConvertFrom-Json
+          $json.version = "${{ github.event.inputs.version }}"
+          $json | ConvertTo-Json -Depth 10 | Set-Content package.json
+      
+      - name: Build React
+        working-directory: ./frontend
+        run: yarn build
+        env:
+          CI: false
+      
+      - name: Build Electron
+        working-directory: ./frontend
+        run: yarn electron-build --win
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: WhatGram-Windows-${{ github.event.inputs.version }}
+          path: |
+            frontend/dist-electron/*.exe
+            frontend/dist-electron/*.yml
+
+  build-macos:
+    if: github.event.inputs.platform == 'all' || github.event.inputs.platform == 'macos'
+    runs-on: macos-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'yarn'
+          cache-dependency-path: frontend/yarn.lock
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: yarn install
+      
+      - name: Update version
+        working-directory: ./frontend
+        run: |
+          node -e "const pkg=require('./package.json'); pkg.version='${{ github.event.inputs.version }}'; require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2))"
+      
+      - name: Build React
+        working-directory: ./frontend
+        run: yarn build
+        env:
+          CI: false
+      
+      - name: Build Electron
+        working-directory: ./frontend
+        run: yarn electron-build --mac
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: WhatGram-macOS-${{ github.event.inputs.version }}
+          path: |
+            frontend/dist-electron/*.dmg
+            frontend/dist-electron/*.zip
+            frontend/dist-electron/*.yml
+
+  build-linux:
+    if: github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'yarn'
+          cache-dependency-path: frontend/yarn.lock
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: yarn install
+      
+      - name: Update version
+        working-directory: ./frontend
+        run: |
+          node -e "const pkg=require('./package.json'); pkg.version='${{ github.event.inputs.version }}'; require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2))"
+      
+      - name: Build React
+        working-directory: ./frontend
+        run: yarn build
+        env:
+          CI: false
+      
+      - name: Build Electron
+        working-directory: ./frontend
+        run: yarn electron-build --linux
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: WhatGram-Linux-${{ github.event.inputs.version }}
+          path: |
+            frontend/dist-electron/*.AppImage
+            frontend/dist-electron/*.deb
+            frontend/dist-electron/*.rpm
+            frontend/dist-electron/*.yml

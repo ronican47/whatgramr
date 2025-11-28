@@ -1,0 +1,188 @@
+name: Build WhatGram Desktop Apps
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'yarn'
+          cache-dependency-path: frontend/yarn.lock
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: yarn install --frozen-lockfile
+      
+      - name: Build React App
+        working-directory: ./frontend
+        run: yarn build
+        env:
+          CI: false
+          REACT_APP_BACKEND_URL: ${{ secrets.BACKEND_URL || 'https://chatbridge-12.preview.emergentagent.com' }}
+      
+      - name: Build Electron App (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: ./frontend
+        run: yarn electron-build --win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build Electron App (macOS)
+        if: matrix.os == 'macos-latest'
+        working-directory: ./frontend
+        run: yarn electron-build --mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build Electron App (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: ./frontend
+        run: yarn electron-build --linux
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload Windows Artifacts
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-build
+          path: |
+            frontend/dist-electron/*.exe
+            frontend/dist-electron/*.yml
+          retention-days: 30
+      
+      - name: Upload macOS Artifacts
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-build
+          path: |
+            frontend/dist-electron/*.dmg
+            frontend/dist-electron/*.zip
+            frontend/dist-electron/*.yml
+          retention-days: 30
+      
+      - name: Upload Linux Artifacts
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-build
+          path: |
+            frontend/dist-electron/*.AppImage
+            frontend/dist-electron/*.deb
+            frontend/dist-electron/*.rpm
+            frontend/dist-electron/*.yml
+          retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+      
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: WhatGram ${{ github.ref }}
+          draft: false
+          prerelease: false
+          body: |
+            ## WhatGram Desktop Release
+            
+            ### Downloads
+            
+            **Windows:**
+            - WhatGram-Setup.exe - Full installer
+            - WhatGram-Portable.exe - No installation required
+            
+            **macOS:**
+            - WhatGram.dmg - Drag and drop installer
+            - WhatGram.zip - Archive
+            
+            **Linux:**
+            - WhatGram.AppImage - Universal Linux package
+            - WhatGram.deb - Debian/Ubuntu package
+            - WhatGram.rpm - RedHat/Fedora package
+            
+            ### Features
+            - ✅ Unified Inbox - All messages in one place
+            - ✅ Multi-platform support (WhatsApp, Telegram, WhatGram)
+            - ✅ Real-time messaging
+            - ✅ Multi-language translation (AI-powered)
+            - ✅ File sharing
+            - ✅ Groups & Channels
+            
+            ### Installation
+            
+            **Windows:** Run WhatGram-Setup.exe
+            **macOS:** Open WhatGram.dmg and drag to Applications
+            **Linux:** Make WhatGram.AppImage executable and run
+      
+      - name: Upload Windows Setup to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./windows-build/WhatGram-Setup-*.exe
+          asset_name: WhatGram-Setup-Windows.exe
+          asset_content_type: application/octet-stream
+      
+      - name: Upload Windows Portable to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./windows-build/WhatGram-Portable-*.exe
+          asset_name: WhatGram-Portable-Windows.exe
+          asset_content_type: application/octet-stream
+      
+      - name: Upload macOS DMG to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./macos-build/WhatGram-*.dmg
+          asset_name: WhatGram-macOS.dmg
+          asset_content_type: application/octet-stream
+      
+      - name: Upload Linux AppImage to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./linux-build/WhatGram-*.AppImage
+          asset_name: WhatGram-Linux.AppImage
+          asset_content_type: application/octet-stream
