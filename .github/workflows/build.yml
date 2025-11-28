@@ -19,10 +19,10 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'yarn'
@@ -60,9 +60,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
+      # GÜNCELLENDİ: v4 sürümü
       - name: Upload Windows Artifacts
         if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: windows-build
           path: |
@@ -70,9 +71,10 @@ jobs:
             frontend/dist-electron/*.yml
           retention-days: 30
       
+      # GÜNCELLENDİ: v4 sürümü
       - name: Upload macOS Artifacts
         if: matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macos-build
           path: |
@@ -81,9 +83,10 @@ jobs:
             frontend/dist-electron/*.yml
           retention-days: 30
       
+      # GÜNCELLENDİ: v4 sürümü
       - name: Upload Linux Artifacts
         if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: linux-build
           path: |
@@ -100,10 +103,13 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
+      # KRİTİK GÜNCELLEME: Upload v4 olduğu için Download da v4 olmalı
+      # v4 otomatik olarak artifact ismine göre klasör oluşturur, 
+      # bu yüzden alttaki 'windows-build/' path'leri çalışmaya devam eder.
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
       
       - name: Create Release
         id: create_release
@@ -185,4 +191,4 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./linux-build/WhatGram-*.AppImage
           asset_name: WhatGram-Linux.AppImage
-          asset_content_type: application/octet-stream
+          asset_content_type: application/octet-stream 
