@@ -20,13 +20,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'yarn'
-          cache-dependency-path: frontend/yarn.lock
+          # Cache ayarları hata verdiği için (yarn.lock bulunamadı) geçici olarak kaldırıldı.
+          # cache: 'yarn'
+          # cache-dependency-path: frontend/yarn.lock
       
       - name: Install dependencies
         working-directory: ./frontend
@@ -104,6 +107,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       
       # KRİTİK GÜNCELLEME: Upload v4 olduğu için Download da v4 olmalı
       # v4 otomatik olarak artifact ismine göre klasör oluşturur, 
